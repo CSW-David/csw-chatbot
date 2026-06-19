@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CSW Bylaws Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet" />
+<style>
+  /* ── CONFIGURATION ───────────────────────────────────────────
+     Set your Anthropic API key below OR point PROXY_URL to your
+     own backend endpoint that forwards requests to the Anthropic
+     API (recommended for production so the key stays server-side).
+     ─────────────────────────────────────────────────────────── */
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --csw-black:    #0d0d0d;
+    --csw-black-2:  #1a1a1a;
+    --csw-black-3:  #252525;
+    --csw-yellow:   #FFD700;
+    --csw-yellow-lt:#FFE34D;
+    --csw-yellow-dm:#997F00;
+    --csw-white:    #f5f0e8;
+    --csw-gray:     #3a3a3a;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    padding: 24px;
+  }
+
+  .csw-chat {
+    font-family: 'Barlow', sans-serif;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--csw-yellow-dm);
+    display: flex;
+    flex-direction: column;
+    height: 620px;
+    background: var(--csw-black);
+  }
+
+  /* Header */
+  .csw-header {
+    background: var(--csw-black);
+    border-bottom: 1px solid var(--csw-yellow-dm);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .csw-logo-mark {
+    width: 38px; height: 38px;
+    background: var(--csw-yellow);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: var(--csw-black);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .csw-header-text h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: var(--csw-white);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .csw-header-text p {
+    font-size: 11px; color: var(--csw-yellow);
+    font-weight: 500; margin-top: 1px;
+  }
+  .header-actions {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .contact-btn {
+    font-family: 'Barlow', sans-serif;
+    font-size: 11.5px; font-weight: 600;
+    text-decoration: none;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--csw-yellow);
+    color: var(--csw-yellow);
+    background: transparent;
+    transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .contact-btn:hover { background: var(--csw-yellow); color: var(--csw-black); }
+  .status-dot {
+    width: 7px; height: 7px;
+    background: #4caf50; border-radius: 50%;
+  }
+
+  /* Messages */
+  .csw-messages {
+    flex: 1; overflow-y: auto;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    background: var(--csw-black-2);
+    scrollbar-width: thin;
+    scrollbar-color: var(--csw-gray) transparent;
+  }
+  .msg { display: flex; gap: 8px; align-items: flex-end; }
+  .msg.user { flex-direction: row-reverse; }
+  .msg-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--csw-yellow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    color: var(--csw-black); flex-shrink: 0;
+  }
+  .msg.user .msg-avatar { background: var(--csw-gray); color: var(--csw-white); }
+  .msg-bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13.5px; line-height: 1.55;
+    color: var(--csw-white);
+    background: var(--csw-black-3);
+    border: 0.5px solid #3a3a3a;
+  }
+  .msg.user .msg-bubble {
+    background: var(--csw-yellow-dm); color: var(--csw-white);
+    border-color: var(--csw-yellow-dm);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot .msg-bubble { border-bottom-left-radius: 4px; }
+  .msg-bubble strong { font-weight: 600; color: var(--csw-yellow-lt); }
+
+  /* Typing indicator */
+  .typing-indicator {
+    display: none; align-items: center; gap: 4px;
+    padding: 10px 14px;
+    background: var(--csw-black-3);
+    border-radius: 16px; border-bottom-left-radius: 4px;
+    border: 0.5px solid #3a3a3a;
+    width: fit-content;
+  }
+  .typing-indicator.active { display: flex; }
+  .typing-dot {
+    width: 6px; height: 6px;
+    background: var(--csw-yellow); border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+
+  /* Suggestion chips */
+  .csw-suggestions {
+    padding: 8px 16px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+    border-top: 0.5px solid #2a2a2a;
+    background: var(--csw-black);
+    flex-shrink: 0;
+  }
+  .suggestion-chip {
+    font-size: 11.5px; font-family: 'Barlow', sans-serif;
+    padding: 5px 10px; border-radius: 20px;
+    border: 1px solid var(--csw-yellow-dm);
+    background: transparent; color: var(--csw-yellow);
+    cursor: pointer; transition: all 0.15s; font-weight: 500;
+  }
+  .suggestion-chip:hover {
+    background: var(--csw-yellow); color: var(--csw-black);
+    border-color: var(--csw-yellow);
+  }
+
+  /* Input row */
+  .csw-input-row {
+    padding: 10px 14px;
+    display: flex; gap: 8px; align-items: center;
+    border-top: 0.5px solid #2a2a2a;
+    background: var(--csw-black);
+    flex-shrink: 0;
+  }
+  .csw-input {
+    flex: 1;
+    border: 1px solid var(--csw-gray); border-radius: 24px;
+    padding: 8px 16px;
+    font-size: 13.5px; font-family: 'Barlow', sans-serif;
+    background: var(--csw-black-3); color: var(--csw-white);
+    outline: none; transition: border-color 0.15s;
+  }
+  .csw-input::placeholder { color: #666; }
+  .csw-input:focus { border-color: var(--csw-yellow); }
+  .csw-send {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--csw-yellow); border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .csw-send:hover { background: var(--csw-yellow-lt); }
+  .csw-send:active { transform: scale(0.95); }
+  .csw-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .csw-send svg { width: 15px; height: 15px; fill: var(--csw-black); }
+
+  .csw-footer {
+    padding: 6px 16px; font-size: 10.5px; color: #555;
+    text-align: center; background: var(--csw-black); flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="csw-chat">
+  <div class="csw-header">
+    <div class="csw-logo-mark">CSW</div>
+    <div class="csw-header-text">
+      <h1>College Sport Wellington</h1>
+      <p>Bylaws Assistant</p>
+    </div>
+    <div class="header-actions">
+      <a class="contact-btn" href="mailto:info@collegesport.org.nz">
+        ✉ Contact CSW
+      </a>
+      <div class="status-dot"></div>
+    </div>
+  </div>
+
+  <div class="csw-messages" id="messages">
+    <div class="msg bot">
+      <div class="msg-avatar">CSW</div>
+      <div class="msg-bubble">
+        Kia ora! I'm the College Sport Wellington Bylaws Assistant. I can help answer questions about eligibility, competitions, transfers, misconduct, and more.<br><br>What would you like to know?
+      </div>
+    </div>
+  </div>
+
+  <div class="csw-suggestions" id="suggestions">
+    <button class="suggestion-chip" onclick="askSuggestion('What are the student eligibility requirements?')">Student eligibility</button>
+    <button class="suggestion-chip" onclick="askSuggestion('How do school transfers work for Tier One competitions?')">School transfers</button>
+    <button class="suggestion-chip" onclick="askSuggestion('What is the misconduct complaints process?')">Misconduct process</button>
+    <button class="suggestion-chip" onclick="askSuggestion('What are the default and withdrawal rules?')">Defaults & withdrawals</button>
+  </div>
+
+  <div class="csw-input-row">
+    <input class="csw-input" id="userInput" type="text" placeholder="Ask about the CSW bylaws…" autocomplete="off" />
+    <button class="csw-send" id="sendBtn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+  <div class="csw-footer">Powered by the 2026 CSW Bylaws · Not a substitute for official CSW advice</div>
+</div>
+
+<script>
+// ── CONFIGURATION ────────────────────────────────────────────────
+// Option A (testing only): paste your Anthropic API key directly.
+//   ⚠ Never use this on a public website — your key will be exposed.
+// Option B (production): leave API_KEY empty and set PROXY_URL to
+//   your backend endpoint (e.g. "/api/chat") that holds the key
+//   server-side and forwards requests to Anthropic.
+// ────────────────────────────────────────────────────────────────
+const API_KEY   = "YOUR_ANTHROPIC_API_KEY_HERE";  // Option A — testing only
+const PROXY_URL = "";                              // Option B — set for production
+
+const BYLAWS_CONTEXT = `You are a helpful assistant for College Sport Wellington (CSW), answering questions based on the CSW 2026 Bylaws. Be concise and friendly. Use plain language. When relevant, cite the specific bylaw section number. Always direct people to speak with their school's Head of Sport in the first instance for any complaint, query, or issue. Never suggest contacting CSW directly — CSW liaises with Heads of Sport, not individuals.
+
+When a question relates to Basketball, Cricket, Football, Futsal, or Rugby, always suggest checking the relevant CSW sport handbook:
+- Basketball: https://www.collegesport.org.nz/asset/downloadasset?id=9b21dcb5-59be-463b-b56c-34c7c7018943
+- Cricket: https://www.collegesport.org.nz/asset/downloadasset?id=ea0af1b4-7b82-4110-8bee-1202e678bdf1
+- Football: https://www.collegesport.org.nz/asset/downloadasset?id=f293f5b6-29e5-4dbf-9499-29fc09e1ae5c
+- Futsal: https://www.collegesport.org.nz/asset/downloadasset?id=95cab1c3-ae9e-4b3b-ae6d-1a1ea0a67b68
+- Rugby: https://www.collegesport.org.nz/asset/downloadasset?id=55d7e890-af17-4d44-be01-be885c8b3118
+
+=== ELIGIBILITY – GENERAL (Section 2) ===
+To be eligible, a student must: be under 19 on 1 January of the competition year; be enrolled in Years 9–13 (Year 14 requires dispensation); be studying at least 80% of a full-time NZQA-approved programme; maintain at least 80% attendance and no more than 14 days absence per term (unless justified); not be suspended or stood down; be registered on the official team list; agree to abide by CSW Bylaws and privacy statement.
+
+A "bona fide student" is properly enrolled and participating in a recognised school programme in Years 9–13 (or Year 14 with dispensation).
+
+School leavers: in non-Tier One competitions only, a school leaver may continue playing if CSW grants an exemption and the student has already played at least 1/3 of the season.
+
+=== YEAR 14 STUDENTS (Section 2.2) ===
+Year 14 students require a formal dispensation from CSW. All of the following must be met: enrolled at same school as previous year; meets all standard eligibility criteria; is NOT a New to School (NTS) student; has NOT completed NCEA Level 3 or equivalent; is returning primarily to complete Level 3 (not for sporting purposes); intends to complete the full school year. Required forms: Appendix 5 (Principal declaration) and Appendix 6 (Student and caregiver declarations).
+
+=== GENDER, INCLUSION & SPECIAL CASES (Section 2.5–2.7) ===
+CSW competitions are male, female, open, or mixed. Schools may submit a written request to CSW for a variation for individual students (e.g. gender-diverse students, elite athletes). Each case is assessed on individual merit considering fairness, inclusion, safety, and guidance from Sport NZ and NSOs. Privacy of the student is respected throughout.
+
+Refugee students (quota refugees, asylum seekers, family reunification immigrants) are classified as domestic students. No refugee student over 19 on 1 January is eligible for Tier One competition. Those within the CSW age protocol are classified as "new to school".
+
+Students with disabilities may participate in mainstream competitions or dedicated disability sports programmes. All enrolled students may participate in disability programmes regardless of age.
+
+=== NEW TO SCHOOL (NTS) (Section 4) ===
+A student is NTS if: their most recent enrolment in Years 10–13 was within 24 months before their first day of attendance (not enrolment); they are a non-domestic (international) student; they are a Te Kura Elite Athlete student (always NTS regardless of enrolment date).
+
+The 24-month period is calculated from the student's first day of full-time attendance, not their enrolment date.
+
+A student is NOT NTS if: they have been granted an NTS exemption; they return to their original school having attended for at least 12 months, return within 15 months of leaving, and did not compete in Tier One sport for another school in between; they transfer between a Host and Attached School (within 24 months); they attend a school that only admits from Year 10 or later (unless they previously represented another school in Tier One within 24 months); they move from Year 8 to Year 9 at the same school.
+
+=== NTS EXEMPTIONS (Section 4.4) ===
+A school may apply for an NTS Exemption for Tier One competition. Maximum 2 exemptions per team per school year. Grounds: (1) Primary caregiver relocation — family moved and student could not reasonably remain at previous school; (2) Extraordinary circumstances — e.g. death of caregiver, court order; (3) Other special circumstances specific to the student. CSW must also be satisfied the move was not primarily for sporting purposes and no inducement occurred. Applications must be received at least 14 working days before the first day of the Tier One event. Students cannot play while waiting for a decision.
+
+=== TRANSFERS – TIER ONE (Section 6) ===
+Process: (1) New school Principal completes Transfer Form (Form 1) with student and caregiver consent, sends to previous school and CSW at least 10 working days before competition; (2) Previous school Principal responds within 5 working days — if they don't respond, the student may participate; (3) If previous school invokes statutory declarations, all three forms (student, new school Principal, caregivers) must be submitted within 3 working days. Missing any deadline means the student cannot participate.
+
+=== INDUCEMENT / POACHING (Section 7) ===
+Strictly prohibited. No school, staff, coach, or representative may approach, induce, encourage, or influence a student to transfer for sporting reasons. No benefits (scholarships, fee reductions, sponsorship, accommodation) may be offered to recruit a student for sport, unless the benefit is publicly available to all students. Complaints are reviewed by CSW Executive Director and referred to CSW Board, Commissioner, or School Sport NZ if substantiated.
+
+=== QUOTAS – TIER ONE (Section 5, Appendix 11) ===
+Quotas apply to Tier One competitions only. Within each quota, a maximum of 2 can be non-domestic students. Specific squad sizes and NTS limits by sport:
+- Badminton Premier and Championship: squad 6, no NTS limit
+- Basketball Premier (incl Grading): squad 12, max 2 NTS, max 2 NDS
+- Basketball 3x3 Premier: squad 5, max 2 NTS, max 2 NDS
+- Cricket Boys Premier: squad 14, max 3 NTS, max 2 NDS
+- Cross Country Teams: squad 3 & 6, no NTS limit
+- Floorball Premier: squad 12, no NTS limit
+- Football Premier (incl Grading): squad 16, max 3 NTS, max 2 NDS
+- Futsal Premier and Senior Championship: squad 12, max 2 NTS, max 2 NDS
+- Golf Senior Championship: squad 6, max 2 NTS, max 2 NDS
+- Hockey Premier One: squad 16, max 3 NTS, max 2 NDS
+- Netball RSSL and Senior Championship: squad 12, max 3 NTS, max 2 NDS
+- Rowing: squad 8, max 3 NTS, max 2 NDS
+- Rugby Boys Premier (incl Grading): squad 22, max 3 NTS, max 2 NDS
+- Rugby Sevens Championship: squad 12, max 2 NTS, max 2 NDS
+- Volleyball Premiers and Senior Championship: squad 12, max 3 NTS, max 2 NDS
+
+Quotas cannot be adjusted during the season except in exceptional circumstances (e.g. season-ending injury). Exceeding quotas may result in loss of points, suspension, or exclusion.
+
+Non-domestic students enrolling in Year 9 before the first day of Term 3 are exempt from quota limitations for that year.
+
+=== TEAM REGISTRATION & LISTS (Section 3) ===
+A student may only be registered in one team per code. In Tier One and Two, no registered player can play for a lower graded team than they are registered in. Playing 3 matches for a higher graded team means the player is deemed to have moved and must be re-registered.
+
+Regrading to a lower team: requires written application to CSW, must be at least 3 competition matches before any playoff, and cannot be added to another team within the same division. Tier Three: regrading is more flexible but CSW must be advised.
+
+Tier One team lists due: no later than 2 weeks after competition commences. Must include full name, photo ID (where required), DOB, year level, year of enrolment, NTS and ND status. Corrections must be advised to CSW before the player participates. Failure to supply lists may result in forfeiture of competition points.
+
+Tier Two and Three: schools must hold lists internally but do not need to submit unless requested by CSW Sport Manager.
+
+=== FINALS / PLAYOFF ELIGIBILITY (Section 3.6) ===
+To be eligible for any quarter-final, semi-final, final, or promotion/relegation match, a player must have played at least 1/3 of the team's competition games, unless promoted from a lower team or returning from injury. Schools may apply for a waiver in unforeseen circumstances — CSW's determination is final.
+
+=== HOST SCHOOL / ATTACHED SCHOOL (Section 8) ===
+Allows students from a school with 100 or fewer students to play for a Host School. Conditions: students meet all eligibility requirements; participate for the full season (unless CSW approves otherwise); Host and Attached Schools are in the same region; Attached School doesn't have enough students for their own team; Principals of both schools sign a Host/Attached Agreement (Appendix 8). The Host School may not have students from more than 2 Attached Schools in the same sport, and may not have more than 2 Host/Attached agreements in total per school year. For distance/online schools, the 100-student limit applies to sport participants, not total enrolment.
+
+=== COMPOSITE TEAMS (Section 9) ===
+Composite teams are NOT permitted in Tier One competitions. Allowed in Tier Two and Three only. A Composite Team Agreement must be signed by the Principals of all schools involved. The Responsible School enters the team. The team name must clearly show it is a combined team. No maximum on number of schools, but all must be CSW member or associate member schools in the same region. Composite teams are eligible for placings, titles, and awards.
+
+=== DISTANCE / ONLINE / TE KURA (Section 10) ===
+Students from distance/online schools must reside in the Greater Wellington region and meet all other eligibility requirements. They must not represent another secondary school. Distance/online schools may field their own teams or form composite teams (Section 9 rules apply). For Host/Attached arrangements, the 100-student limit is based on sport participants, not total enrolment. Te Kura Elite Athlete students are always counted as NTS regardless of enrolment date.
+
+=== COMPETITION RULES (Section 11) ===
+All CSW competitions follow sport-specific rules, subject to CSW Bylaws which take precedence in any conflict or ambiguity. Student welfare and interests must always be prioritised. All teams must be supervised by a Coach or Manager authorised by their Principal for travel to, from, and during any activity.
+
+=== PLAYING SEASONS (Section 12) ===
+Summer Season: Terms 1 and 4. Winter Season: Terms 2 and 3. Competitions align with Ministry of Education term dates. Regular weekly competition should not encroach into school time or Sundays. No sport should seek more than 2 school days for regional championships outside sanctioned Tournament Weeks.
+
+=== AGE & YEAR LEVELS (Section 13) ===
+Age eligibility determined as at 1 January. Junior: Years 9 and 10 (including Years 7 & 8 where applicable). Senior: Years 11–13 (may include Years 7–10). Junior students may play in both senior and junior individual championship/tournament events for any code.
+
+=== COMPETITION STRUCTURE (Section 14) ===
+Grading pools based on end-of-previous-season rankings. A school may only have one team in each Tier One competition, unless exceptional circumstances are demonstrated and CSW approves a waiver (in writing, at least 4 weeks before season). If a team defaults during grading, they are automatically relegated to the lowest grade contested and all their grading results become null and void.
+
+=== RESULTS (Section 15) ===
+Schools are responsible for entering results through the CSW online portal. Deadline: midday the day after play; for weekend sport, midday on the following Monday. If a result remains un-entered after a CSW request, CSW may record it as "No Result" with no points awarded to either team.
+
+=== TIED TEAMS (Section 16) ===
+Two teams tied: head-to-head result decides; if that match was cancelled/drawn, use points differential in all rounds; if a tied team defaulted during round robin, they are disqualified from differentiation and ranked lowest. More than two teams tied: best win/loss ratio between tied teams; if still tied, best points differential in most recent round between tied teams; any team that defaulted is disqualified and ranked lowest. If still tied after all above: coin toss by CSW Sport Manager with a representative from each team. Higher seeded team gets home venue for semi-finals and finals not at neutral venues.
+
+=== ABANDONED MATCHES (Section 17) ===
+Abandoned before second half starts: competition points shared. Abandoned after second half starts: score at time of abandonment stands. Teams may mutually agree to reschedule within 7 days (except semi-finals). Any judicial process may override these outcomes.
+
+=== CANCELLATIONS (Section 18) ===
+CSW will generally cancel entire grades, not individual games. Cancelled games: points shared (excluding bonus points). CSW will attempt to reschedule using designated cancellation days. If insufficient days remain: top two ranked teams contest the final. CSW may vary these conditions in consultation with schools.
+
+=== DEFERRALS (Section 19) ===
+Conditions (all must be met in order): request made to CSW at least 2 weeks before fixture; CSW approves the reason; mutual agreement between both schools; rescheduled within 1 week of original fixture; requesting school advises CSW of all changes at least 48 hours before rescheduled match. If no approval or no agreement: play as scheduled or default. Semi-finals and finals will not generally be deferred.
+
+=== DEFAULTS & WITHDRAWALS (Section 20) ===
+Notify opposing school (Sports Director/code convenor) and CSW by phone or text by 1:00pm on day of match (or 1:00pm preceding Friday for weekend matches). Speak to a person directly — do not leave voicemails. Late/no notification: $40 default fee (half passed to opposing team). Opposing team must notify CSW within 24 hours of receiving late/no notification.
+
+Tier One default sanctions (minimum): loss of match, loss of maximum competition points, loss of next home venue, $75 fine. Second Tier One default in same season: school may forfeit Tier One status in that code the following year. CSW may also impose: loss of all remaining home games, bottom seeding, default of all lower grade teams.
+
+Team withdrawal after entry closure: entry fee forfeited, school may be excluded from further tournaments in that code for the rest of the year. All withdrawn team's matches recorded as "No Result" — no points to either team.
+
+=== OFFICIATING (Section 21) ===
+CSW will appoint officials to at least the top divisions. Where no officials appointed: each team provides a match official. Home team provides official for first half, away team for second half. For codes requiring 2 officials (e.g. basketball, netball): each team provides one official for the entire game. At neutral venues: first-named team in the draw is "home". If a team refuses to provide required officials, opposing team may apply to CSW to claim the match by default.
+
+=== FEES (Section 22) ===
+2026 membership fee: $8 per student (+GST), based on Ministry of Education roll return including foreign fee-paying students. Invoiced in two instalments: February and June. Additional sport-specific entry fees apply (see CSW Handbook). Default and withdrawal fees may also apply. Non-payment may result in disqualification or exclusion.
+
+=== UNIFORMS (Section 23) ===
+All teams must wear appropriate sports uniform in officially registered school colours. Schools must register uniform colours annually with CSW and flag any proposed changes. In a colour clash: home team keeps colours, visiting team changes. At neutral venue: first-named team in draw is "home". Playing in school day uniform or casual clothing is not acceptable and players will be defaulted. Sponsors' logos must be visible but not excessively dominant and must not interfere with numbering. CSW may request changes to inappropriate sponsorship on uniforms.
+
+=== HEALTH & SAFETY (Section 24) ===
+All schools must submit an annual Health and Safety Plan to CSW (due 13 February 2026). Responsibility is shared between schools, CSW, and venue providers. Schools are responsible for student safety at venues and during travel. All participants must follow the CSW Concussion Policy (Appendix 13). Failure to follow concussion guidelines may result in sanctions.
+
+=== CONCUSSION PROTOCOL (Appendix 13) ===
+If concussion suspected: remove from play immediately, seek medical assessment, do NOT return same day. Red flags requiring urgent medical attention: neck pain, increasing confusion, repeated vomiting, seizures, loss of consciousness, severe/increasing headache, double vision, visible skull deformity, weakness in limbs. Graduated 6-stage return to sport: Stage 1-2 (rest, light activity); Stage 3 (increase tolerance); Stage 4 (return to work/study and training without contact); Stage 5 (earliest Day 14, sport-specific training, minimum 7 days at this stage); Stage 6 (earliest Day 21, return to competition — requires medical clearance). Children, adolescents, and females take longer to recover. Multiple concussions (3+ in one season or 5+ in career) require specialist review before returning.
+
+=== SPONSORSHIP (Section 25) ===
+Sponsorship arrangements are the school's responsibility and must be approved by the Principal. Sponsorship should support and develop the school's sports programme. School uniforms may display manufacturer's logo, school crest/name, numbers, and sponsor logos. Sponsor logos must be visible but not excessively dominant and must not interfere with required numbering. Schools should avoid sponsorship from companies associated with objectionable products/services. CSW reserves the right to request changes to inappropriate sponsorship.
+
+=== MISCONDUCT COMPLAINTS (Sections 26–29) ===
+ALL complaints must go through the school's Head of Sport first. This is mandatory — complaints not endorsed by the Head of Sport will be dismissed. The Head of Sport decides whether to handle it internally or forward to CSW.
+
+Timeframe: within 72 hours of the match, event, or alleged breach. 
+
+Match official reports: must be lodged with their RSO and CSW within 72 hours. 
+Other complaints: lodged with Head of Sport, who then forwards to CSW if appropriate.
+
+CSW will then: gather evidence; notify the Principal of the school against whom the complaint is made; request a written response within 72 hours; determine how to process (direct resolution, Complaints Review Committee, or RSO referral).
+
+Complaints Review Committee: chaired by CSW Board Chair (or delegate); a Head of Sport from a member school; other appropriate persons; possibly CSW legal counsel.
+
+Hearing process: all parties notified at least 48 hours before hearing with all evidence supplied. Both schools given opportunity to speak. Panel deliberates and provides finding (oral or written) within 48 hours of hearing.
+
+Sanctions may include: no action; mediation; written warnings; individual/team/school sanctions; any other appropriate penalty.
+
+=== APPEALS (Sections 30–32) ===
+Appeals must go through the school's Head of Sport and Principal. Deadline: within 5 working days of formal notification of decision. Requirements: written substantiated grounds; Principal's signed endorsement; undertaking that Principal will attend hearing; $500 bond (may be refunded wholly or in part). Appeals heard by a CSW Commissioner whose decision is final and binding. Commissioner may uphold or modify the original decision and sanctions.
+
+Other (non-misconduct) complaints: directed to CSW Sport Manager for that sport, or to CSW Executive Director if not sport-specific. All complaints must be in writing via Head of Sport and/or Principal.
+
+=== ASSOCIATE MEMBER SCHOOLS (Appendix 3) ===
+Schools outside the CSW region (generally Wairarapa) may participate in CSW competitions under Associate Member conditions. First teams only. Must not have an appropriate local competition available. Requires approval from their Principal, Regional Sports Director/RSO, and relevant Principals Association. Associate Members must accept all CSW Bylaws and financial requirements. They may win trophies and receive medals. Fees: standard code entry fee plus $8 per maximum squad member. For individual events: standard entry fee plus $8 per student.
+
+=== PRIVACY (Appendix 14) ===
+CSW collects: name, photo ID (where required), DOB, year level, year of enrolment, NTS/ND status, contact information. Used for: eligibility verification, competition administration, and communication. Data is stored securely on third-party systems. To access or correct personal data: contact csw@collegesport.org.nz, call 04 939 1102, or write to PO Box 26042, Wellington 6442.
+
+=== BROADCAST (Appendix 15) ===
+Any commercial broadcast of CSW sport must go through the CSW Executive Director and a Review Committee. Student interests are paramount. Informed consent must be obtained from schools on behalf of students. Footage must respect student dignity. No identifying details that could facilitate contact with a child may be broadcast. Commercial broadcast proposals must be submitted in writing to the CSW Executive Director. Complaints about broadcasts should be directed to the CSW Executive Director in writing.
+
+=== INTEGRITY & VALUES (Appendix 1) ===
+All CSW schools agree to display Honesty, Respect, and Fair Play. The Principal is responsible for all students, staff, coaches, managers, parents, and spectators. Players must play to the rules, respect opponents, accept officials' decisions, and be humble in victory and gracious in defeat. Coaches must treat all players with dignity, give all players equal opportunity, and respect officials' decisions. Parents and spectators must encourage positively, understand the rules, and not abuse coaches or officials. Events are smoke, drug, and alcohol free.
+
+=== INCLUSION POLICY (Appendix 2) ===
+CSW is committed to Te Tiriti o Waitangi principles and inclusive practices including gender equity and diverse representation. Everyone is welcome regardless of culture, identity, race, religion, or background. CSW actively works to include Māori and Pasifika communities, rainbow and Takātapui groups, and students with disabilities. Discrimination is unacceptable and unlawful. Change requests can be made through the school's Director of Sport, Guidance Counsellor, or Principal — CSW will respond within 7 working days.`;
+
+const LOGGING_URL = "https://script.google.com/macros/s/AKfycbzUgzEs2580KDsaCqJSYIc5UJ2ikk7SXy0SvygTEY6I1amIFh43ct5XSERhmPlOZbBZ/exec";
+const SESSION_ID  = "session_" + Date.now();
+const conversationHistory = [];
+
+async function logToSheet(question, answer) {
+  try {
+    await fetch(LOGGING_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, answer, session: SESSION_ID })
+    });
+  } catch (e) {
+    console.warn("Logging failed:", e);
+  }
+}
+
+async function callClaude(userMessage) {
+  conversationHistory.push({ role: "user", content: userMessage });
+
+  const endpoint = PROXY_URL || "https://api.anthropic.com/v1/messages";
+  const headers  = { "Content-Type": "application/json" };
+  if (!PROXY_URL) headers["x-api-key"] = API_KEY;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: BYLAWS_CONTEXT,
+      messages: conversationHistory.map(m => ({ role: m.role, content: m.content }))
+    })
+  });
+
+  const rawText = await response.text();
+
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (e) {
+    throw new Error(`Could not parse response (status ${response.status}): ${rawText.slice(0, 200)}`);
+  }
+
+  if (!response.ok || data.error) {
+    const errMsg = data.error?.message || data.error || `HTTP ${response.status}`;
+    throw new Error(`API error: ${errMsg}`);
+  }
+
+  const reply = data.content?.map(b => b.text || "").join("") ||
+    "Sorry, I couldn't process that. Please contact CSW at info@collegesport.org.nz.";
+  conversationHistory.push({ role: "assistant", content: reply });
+  logToSheet(userMessage, reply);
+  return reply;
+}
+
+function formatMessage(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n- /g, '<br>• ')
+    .replace(/\n/g, '<br>')
+    .replace(/(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#FFD700;text-decoration:underline;word-break:break-all;">$1</a>');
+}
+
+function appendMessage(role, text) {
+  const messages = document.getElementById('messages');
+  const div      = document.createElement('div');
+  div.className  = `msg ${role}`;
+  const avatar   = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'bot' ? 'CSW' : 'You';
+  const bubble   = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = formatMessage(text);
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showTyping() {
+  const messages = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg bot'; row.id = 'typing-row';
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar'; avatar.textContent = 'CSW';
+  const ind = document.createElement('div');
+  ind.className = 'typing-indicator active';
+  ind.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  row.appendChild(avatar); row.appendChild(ind);
+  messages.appendChild(row);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function hideTyping() {
+  const row = document.getElementById('typing-row');
+  if (row) row.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  document.getElementById('suggestions').style.display = 'none';
+  appendMessage('user', text);
+  showTyping();
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  try {
+    const reply = await callClaude(text);
+    hideTyping();
+    appendMessage('bot', reply);
+  } catch (e) {
+    hideTyping();
+    appendMessage('bot', `⚠️ Error: ${e.message}<br><br>Please copy this message and send it to whoever set up the chatbot, or contact CSW at info@collegesport.org.nz.`);
+    console.error(e);
+  }
+  btn.disabled = false;
+  input.focus();
+}
+
+function askSuggestion(text) {
+  document.getElementById('userInput').value = text;
+  sendMessage();
+}
+
+document.getElementById('userInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
+});
+</script>
+</body>
+</html>
